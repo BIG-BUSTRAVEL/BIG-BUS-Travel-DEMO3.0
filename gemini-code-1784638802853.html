@@ -1,0 +1,1366 @@
+<!DOCTYPE html>
+<html lang="uk" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BIG-BUS Travel | Преміум перевезення по Європі</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Бібліотеки QR та Firebase -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        brandGreen: '#05445E',
+                        brandAccent: '#75B9BE',
+                        brandBright: '#189AB4',
+                        flixGreen: '#00D757',
+                        flixGreenDark: '#00B345',
+                        brandBg: '#0B0F17',
+                        brandCard: '#151C28',
+                        brandCardGlass: 'rgba(21, 28, 40, 0.75)',
+                        brandBorder: 'rgba(255, 255, 255, 0.08)'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { 
+            background-color: #0B0F17; 
+            color: #F3F4F6; 
+            font-family: 'Inter', system-ui, -apple-system, sans-serif; 
+            -webkit-tap-highlight-color: transparent; 
+        }
+        
+        .glass-panel {
+            background: rgba(21, 28, 40, 0.65);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .glass-card {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%), rgba(21, 28, 40, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        select option {
+            background-color: #151C28 !important;
+            color: #FFFFFF !important;
+            padding: 10px;
+        }
+
+        .seat { transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
+        .seat.available { 
+            background: rgba(0, 215, 87, 0.15); 
+            border: 1px solid rgba(0, 215, 87, 0.4); 
+            color: #00D757; 
+        }
+        .seat.available:hover, .seat.available:active { 
+            background: #00D757; 
+            color: #000; 
+            box-shadow: 0 0 12px rgba(0, 215, 87, 0.5); 
+            transform: translateY(-2px); 
+        }
+        .seat.selected { 
+            background: #00D757; 
+            color: #000; 
+            border: 1px solid #00D757; 
+            box-shadow: 0 0 15px rgba(0, 215, 87, 0.6); 
+            font-weight: 800; 
+        }
+        .seat.occupied { 
+            background: rgba(255, 255, 255, 0.05); 
+            border: 1px solid rgba(255, 255, 255, 0.05); 
+            color: #4B5563; 
+            cursor: not-allowed; 
+        }
+        .seat.blocked { 
+            background: rgba(239, 68, 68, 0.1); 
+            border: 1px solid rgba(239, 68, 68, 0.3); 
+            color: #ef4444; 
+        }
+
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-thumb { background: #1F2937; border-radius: 10px; }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen pb-20 md:pb-0">
+
+    <!-- Верхній банер (мобільний) -->
+    <div class="bg-gradient-to-r from-flixGreen to-flixGreenDark text-black text-xs py-1.5 px-4 flex justify-between items-center md:hidden font-bold shadow-md">
+        <a href="tel:+380966419819" class="flex items-center gap-1.5">
+            <i class="fa-solid fa-phone text-[10px]"></i> +380 96 641 98 19
+        </a>
+        <a href="https://www.tiktok.com/@vikonskii_bus?_r=1&_t=ZS-97RkFipaQks" target="_blank" class="flex items-center gap-1.5 bg-black/10 px-2 py-0.5 rounded-full text-[11px]">
+            <i class="fa-brands fa-tiktok"></i> TikTok
+        </a>
+    </div>
+
+    <!-- Шапка сайту -->
+    <header class="sticky top-0 z-40 glass-panel border-b border-brandBorder">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="bg-gradient-to-tr from-flixGreen to-flixGreenDark text-black px-3.5 py-1.5 rounded-xl font-black text-xl tracking-wider shadow-lg shadow-flixGreen/20 flex items-center gap-1.5">
+                    <i class="fa-solid fa-bus text-sm"></i> BIG-BUS
+                </div>
+                <span class="text-xs font-bold text-gray-400 tracking-widest hidden sm:inline border-l border-gray-700 pl-3">TRAVEL 2026</span>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <a href="tel:+380966419819" class="hidden md:flex items-center gap-2 bg-white/5 hover:bg-white/10 px-4 py-2 rounded-xl text-sm transition border border-white/10">
+                    <i class="fa-solid fa-phone text-flixGreen"></i>
+                    <span class="font-bold text-gray-200">+380 96 641 98 19</span>
+                </a>
+
+                <button onclick="openParcelModal()" class="flex items-center gap-2 bg-gradient-to-r from-flixGreen to-flixGreenDark hover:opacity-90 px-4 py-2 rounded-xl text-xs md:text-sm font-bold text-black shadow-lg shadow-flixGreen/20 transition transform active:scale-95">
+                    <i class="fa-solid fa-box text-sm"></i>
+                    <span>Передачі 📦</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Головна секція пошуку -->
+    <section class="relative py-8 md:py-14 px-4 border-b border-brandBorder overflow-hidden">
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-flixGreen/10 blur-[130px] rounded-full pointer-events-none"></div>
+
+        <div class="max-w-5xl mx-auto text-center relative z-10">
+            <span class="inline-block bg-flixGreen/10 border border-flixGreen/30 text-flixGreen text-xs font-bold px-3.5 py-1 rounded-full mb-3 uppercase tracking-wider">
+                🌱 Онлайн синхронізація квитків в реальному часі
+            </span>
+            <h1 class="text-3xl md:text-5xl font-black mb-3 tracking-tight text-white leading-tight">
+                Подорожуйте з BIG-BUS Travel легко
+            </h1>
+            <p class="text-gray-400 text-xs md:text-base mb-8 max-w-xl mx-auto font-normal">
+                Бронюйте поїздки по Європі в кілька кліків
+            </p>
+
+            <div class="glass-card p-4 md:p-6 rounded-3xl text-left shadow-2xl relative space-y-4">
+                
+                <div class="flex items-center gap-3 px-1 flex-wrap">
+                    <button type="button" onclick="setTripDirection(false)" id="dirOneWay" class="flex items-center gap-2 cursor-pointer text-xs font-bold px-3.5 py-2 rounded-xl border transition bg-flixGreen/20 border-flixGreen text-flixGreen select-none">
+                        <i class="fa-solid fa-circle-check"></i>
+                        <span>В одну сторону</span>
+                    </button>
+                    <button type="button" onclick="setTripDirection(true)" id="dirRoundTrip" class="flex items-center gap-2 cursor-pointer text-xs font-semibold px-3.5 py-2 rounded-xl border border-white/10 text-gray-400 hover:text-white transition select-none">
+                        <i class="fa-regular fa-circle"></i>
+                        <span>Зворотня поїздка</span>
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 relative">
+                    
+                    <div class="bg-brandBg/90 p-3 rounded-2xl border border-white/10 focus-within:border-flixGreen transition">
+                        <label class="block text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">
+                            <i class="fa-solid fa-circle-dot text-flixGreen mr-1"></i> Звідки
+                        </label>
+                        <select id="fromSelect" onchange="handleRouteSelection()" class="w-full bg-transparent text-sm text-white font-bold focus:outline-none cursor-pointer">
+                        </select>
+                    </div>
+
+                    <div class="bg-brandBg/90 p-3 rounded-2xl border border-white/10 focus-within:border-flixGreen transition">
+                        <label class="block text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">
+                            <i class="fa-solid fa-location-dot text-flixGreen mr-1"></i> Куди
+                        </label>
+                        <select id="toSelect" onchange="handleRouteSelection()" class="w-full bg-transparent text-sm text-white font-bold focus:outline-none cursor-pointer">
+                        </select>
+                    </div>
+
+                    <div class="bg-brandBg/90 p-3 rounded-2xl border border-white/10 focus-within:border-flixGreen transition">
+                        <label class="block text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">
+                            <i class="fa-regular fa-calendar text-flixGreen mr-1"></i> Дата відправлення
+                        </label>
+                        <input type="date" id="searchDateFrom" class="w-full bg-transparent text-sm text-white font-bold focus:outline-none cursor-pointer">
+                    </div>
+
+                    <div id="returnDateContainer" class="bg-brandBg/90 p-3 rounded-2xl border border-white/10 focus-within:border-flixGreen transition hidden">
+                        <label class="block text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">
+                            <i class="fa-regular fa-calendar-check text-flixGreen mr-1"></i> Дата повернення
+                        </label>
+                        <input type="date" id="searchDateBack" class="w-full bg-transparent text-sm text-white font-bold focus:outline-none cursor-pointer">
+                    </div>
+
+                    <div class="bg-brandBg/90 p-3 rounded-2xl border border-white/10 focus-within:border-flixGreen transition">
+                        <label class="block text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">
+                            <i class="fa-solid fa-users text-flixGreen mr-1"></i> Пасажирів
+                        </label>
+                        <select id="passengerCountSelect" onchange="handlePassengerCountChange()" class="w-full bg-transparent text-sm text-white font-bold focus:outline-none cursor-pointer">
+                            <option value="1">1 пасажир</option>
+                            <option value="2">2 пасажири</option>
+                            <option value="3">3 пасажири</option>
+                            <option value="4">4 пасажири</option>
+                            <option value="5">5 пасажирів</option>
+                            <option value="6">6 пасажирів</option>
+                        </select>
+                    </div>
+
+                </div>
+
+                <div class="flex flex-col sm:flex-row justify-between items-center gap-4 bg-brandBg/50 p-3.5 rounded-2xl border border-white/5 pt-4">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2.5 bg-flixGreen/10 rounded-xl text-flixGreen">
+                            <i class="fa-solid fa-ticket text-lg"></i>
+                        </div>
+                        <div>
+                            <span class="text-[11px] text-gray-400 block font-medium" id="priceLabel">Загальна вартість:</span>
+                            <span id="calculatedPrice" class="text-2xl font-black text-flixGreen">€80</span>
+                        </div>
+                    </div>
+                    <button onclick="searchSelectedRoute()" class="w-full sm:w-auto bg-gradient-to-r from-flixGreen to-flixGreenDark hover:opacity-95 text-black font-extrabold px-7 py-3.5 rounded-2xl shadow-xl shadow-flixGreen/20 transition transform active:scale-95 text-sm flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-magnifying-glass"></i> Знайти квитки
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Доступні рейси -->
+    <main class="max-w-7xl mx-auto px-4 py-8 flex-grow w-full">
+        <section class="mb-12">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-lg md:text-2xl font-bold flex items-center gap-2 text-white">
+                    <i class="fa-solid fa-compass text-flixGreen"></i> Доступні рейси
+                </h2>
+                <span class="text-xs text-gray-400 font-medium">Розклад на 2026 рік</span>
+            </div>
+
+            <div id="tripsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-5"></div>
+        </section>
+
+        <!-- Модальне вікно бронювання -->
+        <div id="bookingModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-end md:items-center justify-center p-0 md:p-4 overflow-y-auto">
+            <div class="glass-card border-t md:border border-brandBorder rounded-t-3xl md:rounded-3xl max-w-4xl w-full max-h-[92vh] md:max-h-[90vh] flex flex-col relative overflow-hidden shadow-2xl">
+                
+                <div class="p-4 md:p-5 border-b border-brandBorder flex justify-between items-center bg-brandCard/90 sticky top-0 z-10">
+                    <div>
+                        <h3 class="text-base md:text-xl font-black text-flixGreen" id="modalTripTitle">Бронювання рейсу</h3>
+                        <p class="text-xs text-gray-400 font-medium" id="modalTripDetails"></p>
+                    </div>
+                    <button onclick="closeBookingModal()" class="text-gray-400 hover:text-white p-2 bg-white/5 rounded-full">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                </div>
+
+                <div class="p-4 md:p-6 overflow-y-auto space-y-6 flex-grow">
+                    <div id="occupancyBadge" class="hidden bg-flixGreen/15 border border-flixGreen/30 text-flixGreen text-xs font-bold p-3 rounded-2xl text-center">
+                        🔥 Високий попит! Більшість місць вже зайнято.
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Схема місць -->
+                        <div class="bg-brandBg/90 p-4 md:p-5 rounded-2xl border border-brandBorder">
+                            <div class="flex justify-between items-center mb-4 text-xs text-gray-400 border-b border-white/5 pb-2">
+                                <span class="font-bold text-gray-300">Передок автобуса</span>
+                                <span class="text-[10px] text-gray-400 font-semibold" id="seatSelectionPrompt">Оберіть місця: 0 з 1</span>
+                            </div>
+
+                            <div class="flex justify-between items-center mb-5 px-1">
+                                <div class="w-10 h-10 rounded-xl bg-gray-800 border border-gray-700 flex items-center justify-center text-gray-400 text-xs font-bold" title="Водій">
+                                    <i class="fa-solid fa-dharmachakra text-sm"></i>
+                                </div>
+                                <div class="text-[10px] text-gray-400 uppercase font-bold border border-white/10 px-2.5 py-1 rounded-lg bg-white/5">Вхід</div>
+                            </div>
+
+                            <div class="space-y-3 overflow-x-auto py-1" id="busSeatsGrid"></div>
+
+                            <div class="flex justify-center gap-4 mt-5 text-[11px] text-gray-400 flex-wrap pt-3 border-t border-white/5">
+                                <div class="flex items-center gap-1.5"><span class="w-3 h-3 bg-flixGreen/30 border border-flixGreen rounded"></span> Вільне</div>
+                                <div class="flex items-center gap-1.5"><span class="w-3 h-3 bg-flixGreen rounded"></span> Обране</div>
+                                <div class="flex items-center gap-1.5"><span class="w-3 h-3 bg-white/10 rounded"></span> Заняте</div>
+                            </div>
+                        </div>
+
+                        <!-- Форма даних пасажира -->
+                        <form id="bookingForm" onsubmit="confirmBooking(event)" class="space-y-3.5">
+                            <div>
+                                <label class="block text-xs text-gray-400 font-semibold mb-1">Обрані місця</label>
+                                <input type="text" id="selectedSeatInput" readonly required placeholder="Оберіть на схемі" class="w-full bg-brandBg border border-brandBorder rounded-xl p-3 text-flixGreen font-black text-sm focus:outline-none">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs text-gray-400 font-semibold mb-1">ПІБ Контактної особи / Пасажира *</label>
+                                <input type="text" id="passengerName" required placeholder="Шевченко Тарас" class="w-full bg-brandBg border border-brandBorder rounded-xl p-3 text-sm text-white focus:border-flixGreen focus:outline-none transition">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs text-gray-400 font-semibold mb-1">Номер телефону *</label>
+                                <input type="tel" id="passengerPhone" required placeholder="+380971234567" class="w-full bg-brandBg border border-brandBorder rounded-xl p-3 text-sm text-white focus:border-flixGreen focus:outline-none transition">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs text-gray-400 font-semibold mb-1">Email *</label>
+                                <input type="email" id="passengerEmail" required placeholder="mail@example.com" class="w-full bg-brandBg border border-brandBorder rounded-xl p-3 text-sm text-white focus:border-flixGreen focus:outline-none transition">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs text-gray-400 font-semibold mb-1">Дата виїзду *</label>
+                                <input type="date" id="passengerDate" required class="w-full bg-brandBg border border-brandBorder rounded-xl p-3 text-sm text-white focus:border-flixGreen focus:outline-none transition">
+                            </div>
+
+                            <div class="pt-4 border-t border-brandBorder flex justify-between items-center">
+                                <div>
+                                    <span class="text-[11px] text-gray-400 block" id="modalPriceLabel">Всього до сплати:</span>
+                                    <span class="text-2xl font-black text-flixGreen" id="bookingPrice">€0</span>
+                                </div>
+                                <button type="submit" class="bg-gradient-to-r from-flixGreen to-flixGreenDark hover:opacity-95 text-black font-extrabold px-6 py-3.5 rounded-xl shadow-lg shadow-flixGreen/20 transition text-sm">
+                                    Підтвердити
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Модальне вікно електронного квитка -->
+        <div id="ticketModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-white text-gray-900 rounded-3xl max-w-sm w-full p-6 relative shadow-2xl overflow-y-auto max-h-[90vh]">
+                <button onclick="closeTicketModal()" class="absolute top-4 right-4 text-gray-400 hover:text-black p-1">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+
+                <div class="text-center border-b pb-4 mb-4">
+                    <div class="inline-block bg-flixGreen text-black px-3 py-1 rounded-lg font-black text-xs mb-1">BIG-BUS Travel</div>
+                    <h4 class="font-black text-gray-900 text-base">Електронний квиток</h4>
+                </div>
+
+                <div class="space-y-2.5 text-xs mb-5" id="ticketContent"></div>
+
+                <div class="flex flex-col items-center justify-center bg-gray-50 p-4 rounded-2xl border border-gray-200">
+                    <div id="qrcode"></div>
+                    <p class="text-[10px] text-gray-400 font-medium mt-2">Скануйте при посадці</p>
+                </div>
+
+                <button onclick="window.print()" class="w-full mt-5 bg-gray-900 text-white font-bold py-3.5 rounded-xl text-xs hover:bg-black transition shadow-md">
+                    <i class="fa-solid fa-print mr-1.5"></i> Зберегти або роздрукувати
+                </button>
+            </div>
+        </div>
+
+        <!-- Модальне вікно відправки посилки -->
+        <div id="parcelModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-end md:items-center justify-center p-0 md:p-4">
+            <div class="glass-card border-t md:border border-brandBorder rounded-t-3xl md:rounded-3xl max-w-md w-full p-6 relative">
+                <button onclick="closeParcelModal()" class="absolute top-5 right-5 text-gray-400 hover:text-white p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+
+                <div class="flex items-center gap-3.5 mb-5">
+                    <div class="p-3 bg-flixGreen/10 text-flixGreen rounded-2xl text-2xl">📦</div>
+                    <div>
+                        <h3 class="text-base font-bold text-white">Відправка посилки</h3>
+                        <p class="text-xs text-gray-400">Швидка доставка по маршруту</p>
+                    </div>
+                </div>
+
+                <form onsubmit="submitParcel(event)" class="space-y-3.5">
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1 font-medium">Ваше ім'я</label>
+                        <input type="text" id="parcelName" required placeholder="Олександр" class="w-full bg-brandBg border border-brandBorder rounded-xl p-3 text-sm text-white focus:border-flixGreen focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1 font-medium">Телефон</label>
+                        <input type="tel" id="parcelPhone" required placeholder="+380..." class="w-full bg-brandBg border border-brandBorder rounded-xl p-3 text-sm text-white focus:border-flixGreen focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1 font-medium">Деталі (Звідки -> Куди, вага)</label>
+                        <textarea id="parcelDetails" required placeholder="Коломия -> Мюнхен (коробка 10кг)" class="w-full bg-brandBg border border-brandBorder rounded-xl p-3 text-sm text-white focus:border-flixGreen focus:outline-none h-24 resize-none"></textarea>
+                    </div>
+                    <button type="submit" class="w-full bg-gradient-to-r from-flixGreen to-flixGreenDark hover:opacity-95 text-black font-extrabold py-3.5 rounded-xl text-sm transition shadow-lg shadow-flixGreen/20">
+                        Надіслати заявку
+                    </button>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <!-- Підвал сайту -->
+    <footer class="bg-brandBg border-t border-brandBorder py-8 px-4 mt-auto">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4 text-center md:text-left text-xs text-gray-500">
+            <div>© 2026 BIG-BUS Travel. Всі права захищені.</div>
+            <div class="flex items-center gap-5">
+                <a href="tel:+380966419819" class="hover:text-white transition">+380 96 641 98 19</a>
+                <button onclick="openAdminModal()" class="text-gray-600 hover:text-flixGreen transition">
+                    <i class="fa-solid fa-lock"></i> Адмін Панель
+                </button>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Нижня панель навігації (для мобільних) -->
+    <div class="fixed bottom-0 left-0 right-0 glass-panel border-t border-brandBorder flex justify-around items-center py-2.5 px-4 z-30 md:hidden">
+        <a href="tel:+380966419819" class="flex flex-col items-center text-gray-400 hover:text-flixGreen transition">
+            <i class="fa-solid fa-phone text-lg"></i>
+            <span class="text-[10px] mt-1 font-medium">Дзвінок</span>
+        </a>
+        <button onclick="openParcelModal()" class="flex flex-col items-center text-gray-400 hover:text-flixGreen transition">
+            <i class="fa-solid fa-box text-lg"></i>
+            <span class="text-[10px] mt-1 font-medium">Посилки</span>
+        </button>
+        <a href="https://www.tiktok.com/@vikonskii_bus?_r=1&_t=ZS-97RkFipaQks" target="_blank" class="flex flex-col items-center text-gray-400 hover:text-flixGreen transition">
+            <i class="fa-brands fa-tiktok text-lg"></i>
+            <span class="text-[10px] mt-1 font-medium">TikTok</span>
+        </a>
+    </div>
+
+    <!-- Адмін-панель -->
+    <div id="adminModal" class="fixed inset-0 bg-black/95 backdrop-blur-md z-50 hidden flex flex-col p-3 md:p-6 overflow-y-auto">
+        <div class="max-w-6xl mx-auto w-full glass-card border border-brandBorder rounded-3xl p-5 md:p-8 relative my-auto">
+            <button onclick="closeAdminModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white p-2">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+
+            <!-- Вхід -->
+            <div id="adminLoginSection" class="max-w-sm mx-auto text-center py-8">
+                <i class="fa-solid fa-shield-halved text-4xl text-flixGreen mb-3"></i>
+                <h3 class="text-xl font-bold mb-4">Вхід в панель керування</h3>
+                <input type="password" id="adminPassword" placeholder="Пароль доступу" class="w-full bg-brandBg border border-brandBorder rounded-xl p-3.5 text-white mb-4 text-center text-sm focus:border-flixGreen focus:outline-none">
+                <button onclick="checkAdminPassword()" class="w-full bg-gradient-to-r from-flixGreen to-flixGreenDark text-black font-extrabold py-3.5 rounded-xl text-sm transition shadow-lg">
+                    Увійти
+                </button>
+            </div>
+
+            <!-- Адмін функціонал -->
+            <div id="adminDashboardSection" class="hidden space-y-6">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b border-brandBorder pb-4">
+                    <h3 class="text-lg font-bold text-flixGreen flex items-center gap-2">
+                        <i class="fa-solid fa-sliders"></i> Управління BIG-BUS
+                    </h3>
+                    <button onclick="toggleScanner()" class="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 text-xs shadow-md">
+                        <i class="fa-solid fa-camera"></i> <span id="scannerBtnText">Сканувати QR квиток</span>
+                    </button>
+                </div>
+
+                <div id="scannerContainer" class="hidden bg-black/80 p-4 rounded-2xl border border-blue-500/40 max-w-md mx-auto">
+                    <div id="reader"></div>
+                    <p id="scannerResult" class="text-center text-xs font-bold mt-3 text-green-400"></p>
+                </div>
+
+                <!-- Створення рейсу -->
+                <div class="bg-brandBg/60 p-4 rounded-2xl border border-brandBorder">
+                    <h4 class="font-bold mb-3 text-xs text-gray-300">+ Створити новий рейс</h4>
+                    <form id="addTripForm" onsubmit="addOrUpdateTrip(event)" class="grid grid-cols-1 md:grid-cols-5 gap-3">
+                        <input type="text" id="adminFrom" placeholder="Звідки (напр. Коломия)" required class="bg-brandCard border border-brandBorder p-2.5 rounded-xl text-xs text-white focus:outline-none focus:border-flixGreen">
+                        <input type="text" id="adminTo" placeholder="Куди (напр. Берлін)" required class="bg-brandCard border border-brandBorder p-2.5 rounded-xl text-xs text-white focus:outline-none focus:border-flixGreen">
+                        <input type="date" id="adminDate" required class="bg-brandCard border border-brandBorder p-2.5 rounded-xl text-xs text-white focus:outline-none focus:border-flixGreen">
+                        <input type="time" id="adminTime" required class="bg-brandCard border border-brandBorder p-2.5 rounded-xl text-xs text-white focus:outline-none focus:border-flixGreen">
+                        <input type="number" id="adminPrice" placeholder="Ціна (€)" required min="1" class="bg-brandCard border border-brandBorder p-2.5 rounded-xl text-xs text-white font-bold text-flixGreen focus:outline-none">
+                        
+                        <button type="submit" id="submitTripBtn" class="md:col-span-5 bg-flixGreen hover:bg-flixGreenDark text-black font-extrabold py-3 rounded-xl text-xs transition shadow-md flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-plus"></i> <span>Зберегти та опублікувати рейс</span>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Блокування місць -->
+                <div class="bg-brandBg/60 p-4 rounded-2xl border border-brandBorder">
+                    <h4 class="font-bold mb-2 text-xs text-gray-300"><i class="fa-solid fa-ban text-red-500 mr-1"></i> Ручне блокування місць</h4>
+                    <select id="adminTripSelect" onchange="loadAdminBusSeats()" class="bg-brandCard border border-brandBorder p-2.5 rounded-xl text-xs text-white w-full mb-3 focus:outline-none"></select>
+                    <div id="adminSeatsContainer" class="hidden">
+                        <div class="bg-brandCard p-4 rounded-2xl border border-brandBorder">
+                            <div id="adminBusSeatsGrid" class="space-y-2 overflow-x-auto"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Таблиці інформації -->
+                <div>
+                    <h4 class="font-bold mb-3 text-xs text-gray-300">Активні рейси</h4>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-[11px] border-collapse min-w-[650px]">
+                            <thead>
+                                <tr class="bg-brandBg text-gray-400 border-b border-brandBorder">
+                                    <th class="p-2.5">Звідки</th>
+                                    <th class="p-2.5">Куди</th>
+                                    <th class="p-2.5">Дата / Час</th>
+                                    <th class="p-2.5">Ціна (€)</th>
+                                    <th class="p-2.5">Стан</th>
+                                    <th class="p-2.5 text-right">Дії</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminTripsTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="font-bold mb-3 text-xs text-gray-300">Забронювання пасажирів</h4>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-[11px] border-collapse min-w-[500px]">
+                            <thead>
+                                <tr class="bg-brandBg text-gray-400 border-b border-brandBorder">
+                                    <th class="p-2.5">Код</th>
+                                    <th class="p-2.5">Маршрут</th>
+                                    <th class="p-2.5">Пасажир</th>
+                                    <th class="p-2.5">Телефон</th>
+                                    <th class="p-2.5">Місця</th>
+                                    <th class="p-2.5 text-right">Дії</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminBookingsTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="font-bold mb-3 text-xs text-gray-300"><i class="fa-solid fa-box text-flixGreen mr-1"></i> Заявки на передачі</h4>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-[11px] border-collapse min-w-[550px]">
+                            <thead>
+                                <tr class="bg-brandBg text-gray-400 border-b border-brandBorder">
+                                    <th class="p-2.5">Дата</th>
+                                    <th class="p-2.5">Ім'я</th>
+                                    <th class="p-2.5">Телефон</th>
+                                    <th class="p-2.5">Деталі</th>
+                                    <th class="p-2.5 text-right">Дії</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminParcelsTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Логіка JS -->
+    <script>
+        const firebaseConfig = {
+            databaseURL: "https://bigbus-default-rtdb.europe-west1.firebasedatabase.app/"
+        };
+        
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const db = firebase.database();
+
+        let trips = [];
+        let bookings = [];
+        let parcels = [];
+        
+        let currentSelectedTrip = null;
+        let selectedSeats = [];
+        let passengerCount = 1;
+        let html5QrcodeScanner = null;
+        let isRoundTrip = false;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const today = new Date().toISOString().split('T')[0];
+            const dateFromInput = document.getElementById('searchDateFrom');
+            const adminDateInput = document.getElementById('adminDate');
+            if(dateFromInput && !dateFromInput.value) dateFromInput.value = today;
+            if(adminDateInput && !adminDateInput.value) adminDateInput.value = today;
+
+            const defaultTrips = [
+                { id: 'trip1', from: "Коломия", to: "Польща", route: "Коломия — Польща", date: "2026-07-25", time: "08:00", price: 60, seatsCount: 43, blockedSeats: [] },
+                { id: 'trip2', from: "Коломия", to: "Німеччина", route: "Коломия — Німеччина", date: "2026-07-26", time: "07:00", price: 85, seatsCount: 43, blockedSeats: [] },
+                { id: 'trip3', from: "Коломия", to: "Люксембург", route: "Коломия — Люксембург", date: "2026-07-28", time: "06:00", price: 105, seatsCount: 43, blockedSeats: [] },
+                { id: 'trip4', from: "Коломия", to: "Париж", route: "Коломия — Париж", date: "2026-07-30", time: "06:00", price: 130, seatsCount: 43, blockedSeats: [] }
+            ];
+
+            db.ref('trips').on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    trips = Object.keys(data).map(key => ({ id: key, ...data[key] }));
+                } else {
+                    defaultTrips.forEach(t => db.ref('trips/' + t.id).set(t));
+                    trips = defaultTrips;
+                }
+                updateClientSelects();
+                handleRouteSelection();
+                populateAdminTripSelect();
+                renderAdminTripsTable();
+            });
+
+            db.ref('bookings').on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    bookings = Object.keys(data).map(key => ({ fbKey: key, ...data[key] }));
+                } else {
+                    bookings = [];
+                }
+                renderTrips();
+                renderAdminBookingsTable();
+                if (currentSelectedTrip && !document.getElementById('bookingModal').classList.contains('hidden')) {
+                    openBookingModal(currentSelectedTrip.id);
+                }
+            });
+
+            db.ref('parcels').on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    parcels = Object.keys(data).map(key => ({ fbKey: key, ...data[key] }));
+                } else {
+                    parcels = [];
+                }
+                renderAdminParcelsTable();
+            });
+        });
+
+        function handlePassengerCountChange() {
+            passengerCount = Number(document.getElementById('passengerCountSelect').value) || 1;
+            handleRouteSelection();
+        }
+
+        function setTripDirection(roundTrip) {
+            isRoundTrip = roundTrip;
+            const btnOneWay = document.getElementById('dirOneWay');
+            const btnRoundTrip = document.getElementById('dirRoundTrip');
+            const container = document.getElementById('returnDateContainer');
+
+            if (isRoundTrip) {
+                btnRoundTrip.className = "flex items-center gap-2 cursor-pointer text-xs font-bold px-3.5 py-2 rounded-xl border transition bg-flixGreen/20 border-flixGreen text-flixGreen select-none";
+                btnRoundTrip.innerHTML = '<i class="fa-solid fa-circle-check"></i><span>Зворотня поїздка</span>';
+
+                btnOneWay.className = "flex items-center gap-2 cursor-pointer text-xs font-semibold px-3.5 py-2 rounded-xl border border-white/10 text-gray-400 hover:text-white transition select-none";
+                btnOneWay.innerHTML = '<i class="fa-regular fa-circle"></i><span>В одну сторону</span>';
+
+                container.classList.remove('hidden');
+                
+                const dateBackInput = document.getElementById('searchDateBack');
+                if(dateBackInput && !dateBackInput.value) {
+                    let d = new Date();
+                    d.setDate(d.getDate() + 3);
+                    dateBackInput.value = d.toISOString().split('T')[0];
+                }
+            } else {
+                btnOneWay.className = "flex items-center gap-2 cursor-pointer text-xs font-bold px-3.5 py-2 rounded-xl border transition bg-flixGreen/20 border-flixGreen text-flixGreen select-none";
+                btnOneWay.innerHTML = '<i class="fa-solid fa-circle-check"></i><span>В одну сторону</span>';
+
+                btnRoundTrip.className = "flex items-center gap-2 cursor-pointer text-xs font-semibold px-3.5 py-2 rounded-xl border border-white/10 text-gray-400 hover:text-white transition select-none";
+                btnRoundTrip.innerHTML = '<i class="fa-regular fa-circle"></i><span>Зворотня поїздка</span>';
+
+                container.classList.add('hidden');
+            }
+
+            handleRouteSelection();
+        }
+
+        function updateClientSelects() {
+            const fromSelect = document.getElementById('fromSelect');
+            const toSelect = document.getElementById('toSelect');
+
+            const currentFrom = fromSelect.value;
+            const currentTo = toSelect.value;
+
+            const fromCities = [...new Set(trips.map(t => t.from))];
+            const toCities = [...new Set(trips.map(t => t.to))];
+
+            fromSelect.innerHTML = '';
+            toSelect.innerHTML = '';
+
+            fromCities.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c;
+                opt.innerText = c;
+                fromSelect.appendChild(opt);
+            });
+
+            toCities.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c;
+                opt.innerText = c;
+                toSelect.appendChild(opt);
+            });
+
+            if(currentFrom && fromCities.includes(currentFrom)) fromSelect.value = currentFrom;
+            if(currentTo && toCities.includes(currentTo)) toSelect.value = currentTo;
+        }
+
+        function handleRouteSelection() {
+            const from = document.getElementById('fromSelect').value;
+            const to = document.getElementById('toSelect').value;
+
+            const foundTrip = trips.find(t => t.from === from && t.to === to);
+            
+            if (foundTrip) {
+                let multiplier = passengerCount * (isRoundTrip ? 2 : 1);
+                let displayPrice = foundTrip.price * multiplier;
+                document.getElementById('calculatedPrice').innerText = `€${displayPrice}`;
+            } else {
+                document.getElementById('calculatedPrice').innerText = `За запитом`;
+            }
+
+            renderTrips(from, to);
+        }
+
+        function renderTrips(filterFrom = null, filterTo = null) {
+            const container = document.getElementById('tripsContainer');
+            container.innerHTML = '';
+
+            let filteredTrips = trips;
+            if (filterFrom && filterTo) {
+                filteredTrips = trips.filter(t => t.from === filterFrom && t.to === filterTo);
+            }
+
+            if (filteredTrips.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full glass-card p-8 rounded-3xl text-center text-gray-400 border border-brandBorder">
+                        <i class="fa-solid fa-bus text-4xl text-flixGreen mb-3"></i>
+                        <p class="font-medium text-sm">На обраний напрямок немає регулярних рейсів.</p>
+                        <p class="text-xs text-gray-500 mt-1">Зв'яжіться з диспетчером для уточнення розкладу.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            filteredTrips.forEach(trip => {
+                if(!trip.blockedSeats) trip.blockedSeats = [];
+                
+                const tripBookings = bookings.filter(b => b.tripId === trip.id);
+                let bookedCount = 0;
+                tripBookings.forEach(b => {
+                    if (Array.isArray(b.seatNumber)) {
+                        bookedCount += b.seatNumber.length;
+                    } else if (b.seatNumber) {
+                        bookedCount += 1;
+                    }
+                });
+
+                const blockedCount = trip.blockedSeats.length;
+                const totalUnavailable = bookedCount + blockedCount;
+                const freeSeats = (trip.seatsCount || 43) - totalUnavailable;
+                const isAlmostFull = (totalUnavailable / (trip.seatsCount || 43)) >= 0.4;
+
+                let multiplier = passengerCount * (isRoundTrip ? 2 : 1);
+                let tripDisplayPrice = trip.price * multiplier;
+
+                const card = document.createElement('div');
+                card.className = "glass-card rounded-3xl p-5 md:p-6 transition hover:border-flixGreen/40 flex flex-col justify-between relative overflow-hidden shadow-xl";
+                card.innerHTML = `
+                    <div>
+                        <div class="flex justify-between items-start mb-3">
+                            <h3 class="text-lg font-black text-white">${trip.route}</h3>
+                            ${isAlmostFull ? `<span class="bg-flixGreen/10 border border-flixGreen/30 text-flixGreen text-[10px] font-bold px-2.5 py-1 rounded-full">🔥 Мало місць</span>` : ''}
+                        </div>
+
+                        <div class="flex items-center justify-between bg-brandBg/50 p-3 rounded-2xl border border-white/5 mb-4">
+                            <div>
+                                <span class="text-xs font-bold text-white block">${trip.time}</span>
+                                <span class="text-[10px] text-gray-400">${trip.from}</span>
+                            </div>
+                            <div class="flex-grow px-3 text-center">
+                                <div class="relative flex items-center justify-center">
+                                    <div class="w-full h-[2px] bg-gray-700"></div>
+                                    <i class="fa-solid fa-bus absolute text-[10px] text-flixGreen bg-brandBg px-1"></i>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-xs font-bold text-white block">${trip.date}</span>
+                                <span class="text-[10px] text-gray-400">${trip.to}</span>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-3 text-gray-400 text-xs mb-4">
+                            <span title="Wi-Fi"><i class="fa-solid fa-wifi text-gray-500"></i></span>
+                            <span title="Розетка"><i class="fa-solid fa-plug text-gray-500"></i></span>
+                            <span title="Кондиціонер"><i class="fa-solid fa-snowflake text-gray-500"></i></span>
+                            <span title="Багаж"><i class="fa-solid fa-suitcase text-gray-500"></i></span>
+                            <span class="text-[11px] text-gray-400 ml-auto font-medium">Вільних: <strong class="text-white">${freeSeats}</strong> місць</span>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between items-center pt-3.5 border-t border-brandBorder">
+                        <div>
+                            <span class="text-[10px] text-gray-400 block uppercase tracking-wider font-semibold">${isRoundTrip ? 'Зворотня поїздка' : 'В одну сторону'} (${passengerCount} пас.)</span>
+                            <span class="text-2xl font-black text-flixGreen">€${tripDisplayPrice}</span>
+                        </div>
+                        <button onclick="openBookingModal('${trip.id}')" class="bg-gradient-to-r from-flixGreen to-flixGreenDark hover:opacity-90 text-black text-xs font-extrabold px-5 py-3 rounded-xl transition shadow-lg shadow-flixGreen/20 transform active:scale-95">
+                            Обрати місця
+                        </button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function searchSelectedRoute() {
+            const from = document.getElementById('fromSelect').value;
+            const to = document.getElementById('toSelect').value;
+
+            if (from === to) {
+                alert('Оберіть різні пункти відправлення та прибуття!');
+                return;
+            }
+
+            renderTrips(from, to);
+            
+            const foundTrip = trips.find(t => t.from === from && t.to === to);
+            if (foundTrip) {
+                openBookingModal(foundTrip.id);
+            }
+        }
+
+        function openBookingModal(tripId) {
+            currentSelectedTrip = trips.find(t => t.id === tripId);
+            if(!currentSelectedTrip) return;
+            if(!currentSelectedTrip.blockedSeats) currentSelectedTrip.blockedSeats = [];
+            selectedSeats = [];
+
+            document.getElementById('modalTripTitle').innerText = currentSelectedTrip.route;
+            document.getElementById('modalTripDetails').innerText = `Дата: ${currentSelectedTrip.date} | Час: ${currentSelectedTrip.time} | Пасажирів: ${passengerCount}`;
+            
+            let modalPrice = currentSelectedTrip.price * passengerCount * (isRoundTrip ? 2 : 1);
+            document.getElementById('bookingPrice').innerText = `€${modalPrice}`;
+            
+            updateSelectedSeatsUI();
+            document.getElementById('passengerDate').value = currentSelectedTrip.date;
+
+            const tripBookings = bookings.filter(b => b.tripId === tripId);
+            let bookedSeats = [];
+            tripBookings.forEach(b => {
+                if(Array.isArray(b.seatNumber)) {
+                    bookedSeats.push(...b.seatNumber);
+                } else if(b.seatNumber) {
+                    bookedSeats.push(Number(b.seatNumber));
+                }
+            });
+
+            const blockedSeats = currentSelectedTrip.blockedSeats;
+
+            const isAlmostFull = ((bookedSeats.length + blockedSeats.length) / (currentSelectedTrip.seatsCount || 43)) >= 0.4;
+            document.getElementById('occupancyBadge').classList.toggle('hidden', !isAlmostFull);
+
+            const seatsGrid = document.getElementById('busSeatsGrid');
+            seatsGrid.innerHTML = '';
+
+            let seatCounter = 1;
+            for (let row = 1; row <= 10; row++) {
+                const rowDiv = document.createElement('div');
+                rowDiv.className = "flex justify-between gap-2 min-w-[260px]";
+
+                const leftPair = document.createElement('div');
+                leftPair.className = "flex gap-2";
+                const rightPair = document.createElement('div');
+                rightPair.className = "flex gap-2";
+
+                for (let i = 0; i < 2; i++) {
+                    if (seatCounter <= 40) {
+                        leftPair.appendChild(createSeatElement(seatCounter, bookedSeats, blockedSeats));
+                        seatCounter++;
+                    }
+                }
+                for (let i = 0; i < 2; i++) {
+                    if (seatCounter <= 40) {
+                        rightPair.appendChild(createSeatElement(seatCounter, bookedSeats, blockedSeats));
+                        seatCounter++;
+                    }
+                }
+
+                rowDiv.appendChild(leftPair);
+                rowDiv.appendChild(rightPair);
+                seatsGrid.appendChild(rowDiv);
+            }
+
+            const backRow = document.createElement('div');
+            backRow.className = "flex justify-center gap-2 pt-2 border-t border-white/5 min-w-[260px]";
+            while (seatCounter <= 43) {
+                backRow.appendChild(createSeatElement(seatCounter, bookedSeats, blockedSeats));
+                seatCounter++;
+            }
+            seatsGrid.appendChild(backRow);
+
+            document.getElementById('bookingModal').classList.remove('hidden');
+        }
+
+        function createSeatElement(seatNum, bookedSeats, blockedSeats) {
+            const btn = document.createElement('button');
+            btn.type = "button";
+            btn.dataset.seat = seatNum;
+            const isBooked = bookedSeats.includes(seatNum);
+            const isBlocked = blockedSeats.includes(seatNum);
+
+            btn.className = "w-9 h-9 md:w-8 md:h-8 rounded-xl text-xs font-bold seat flex items-center justify-center";
+
+            if (isBooked || isBlocked) {
+                btn.classList.add('occupied');
+                btn.innerText = isBlocked ? "🚫" : seatNum;
+            } else {
+                btn.classList.add('available');
+                btn.innerText = seatNum;
+                btn.onclick = () => toggleSeatSelection(seatNum, btn);
+            }
+            return btn;
+        }
+
+        function toggleSeatSelection(seatNum, btnElement) {
+            const index = selectedSeats.indexOf(seatNum);
+
+            if (index > -1) {
+                selectedSeats.splice(index, 1);
+                btnElement.classList.remove('selected');
+                btnElement.classList.add('available');
+            } else {
+                if (selectedSeats.length >= passengerCount) {
+                    alert(`Ви вже обрали ${passengerCount} місць(ць) для ${passengerCount} пасажирів!`);
+                    return;
+                }
+                selectedSeats.push(seatNum);
+                btnElement.classList.remove('available');
+                btnElement.classList.add('selected');
+            }
+
+            updateSelectedSeatsUI();
+        }
+
+        function updateSelectedSeatsUI() {
+            const seatInput = document.getElementById('selectedSeatInput');
+            const prompt = document.getElementById('seatSelectionPrompt');
+
+            if (selectedSeats.length === 0) {
+                seatInput.value = '';
+            } else {
+                selectedSeats.sort((a, b) => a - b);
+                seatInput.value = `Місця № ${selectedSeats.join(', ')}`;
+            }
+
+            prompt.innerText = `Обрано місця: ${selectedSeats.length} з ${passengerCount}`;
+            if(selectedSeats.length === passengerCount) {
+                prompt.className = "text-[10px] text-flixGreen font-bold";
+            } else {
+                prompt.className = "text-[10px] text-gray-400 font-semibold";
+            }
+        }
+
+        function closeBookingModal() { document.getElementById('bookingModal').classList.add('hidden'); }
+
+        function confirmBooking(e) {
+            e.preventDefault();
+            if (selectedSeats.length < passengerCount) {
+                alert(`Будь ласка, оберіть ${passengerCount} місць(ця) на схемі!`);
+                return;
+            }
+
+            let finalPrice = currentSelectedTrip.price * passengerCount * (isRoundTrip ? 2 : 1);
+            const ticketCode = 'BB-' + Math.floor(100000 + Math.random() * 900000);
+            
+            const bookingData = {
+                ticketCode: ticketCode,
+                tripId: currentSelectedTrip.id,
+                route: currentSelectedTrip.route,
+                name: document.getElementById('passengerName').value,
+                phone: document.getElementById('passengerPhone').value.replace(/\s+/g, ''),
+                email: document.getElementById('passengerEmail').value,
+                date: document.getElementById('passengerDate').value,
+                seatNumber: selectedSeats,
+                passengerCount: passengerCount,
+                price: finalPrice,
+                tripType: isRoundTrip ? 'Зворотня поїздка' : 'В одну сторону'
+            };
+
+            db.ref('bookings').push(bookingData, (error) => {
+                if (error) {
+                    alert("Помилка бронювання. Перевірте з'єднання.");
+                } else {
+                    closeBookingModal();
+                    showTicket(bookingData);
+                    document.getElementById('bookingForm').reset();
+                }
+            });
+        }
+
+        function showTicket(data) {
+            const content = document.getElementById('ticketContent');
+            const seatsFormatted = Array.isArray(data.seatNumber) ? data.seatNumber.join(', ') : data.seatNumber;
+
+            content.innerHTML = `
+                <p><strong>Код:</strong> <span class="text-flixGreen font-mono font-bold">${data.ticketCode}</span></p>
+                <p><strong>Пасажир:</strong> ${data.name}</p>
+                <p><strong>Кількість пасажирів:</strong> ${data.passengerCount || 1}</p>
+                <p><strong>Маршрут:</strong> ${data.route}</p>
+                <p><strong>Тип:</strong> ${data.tripType}</p>
+                <p><strong>Дата:</strong> ${data.date}</p>
+                <p><strong>Обрані місця:</strong> № ${seatsFormatted}</p>
+                <p><strong>Загальна ціна:</strong> €${data.price}</p>
+            `;
+
+            document.getElementById('qrcode').innerHTML = '';
+            new QRCode(document.getElementById("qrcode"), { text: data.ticketCode, width: 110, height: 110 });
+            document.getElementById('ticketModal').classList.remove('hidden');
+        }
+
+        function closeTicketModal() { document.getElementById('ticketModal').classList.add('hidden'); }
+        function openParcelModal() { document.getElementById('parcelModal').classList.remove('hidden'); }
+        function closeParcelModal() { document.getElementById('parcelModal').classList.add('hidden'); }
+        
+        function submitParcel(e) {
+            e.preventDefault();
+            const parcelData = {
+                name: document.getElementById('parcelName').value,
+                phone: document.getElementById('parcelPhone').value.replace(/\s+/g, ''),
+                details: document.getElementById('parcelDetails').value,
+                date: new Date().toLocaleDateString('uk-UA')
+            };
+
+            db.ref('parcels').push(parcelData, (error) => {
+                if(!error) {
+                    alert('Заявку на передачу прийнято! Ми зв\'яжемося з вами.');
+                    document.getElementById('parcelName').value = '';
+                    document.getElementById('parcelPhone').value = '';
+                    document.getElementById('parcelDetails').value = '';
+                    closeParcelModal();
+                }
+            });
+        }
+
+        // Адмін-панель
+        function openAdminModal() { document.getElementById('adminModal').classList.remove('hidden'); }
+        function closeAdminModal() { document.getElementById('adminModal').classList.add('hidden'); }
+
+        function checkAdminPassword() {
+            if (document.getElementById('adminPassword').value === 'admin123') {
+                document.getElementById('adminLoginSection').classList.add('hidden');
+                document.getElementById('adminDashboardSection').classList.remove('hidden');
+                populateAdminTripSelect();
+                renderAdminTripsTable();
+                renderAdminBookingsTable();
+                renderAdminParcelsTable();
+            } else {
+                alert('Невірний пароль!');
+            }
+        }
+
+        // ФУНКЦІЯ СТВОРЕННЯ/ОНОВЛЕННЯ РЕЙСУ
+        async function addOrUpdateTrip(e) {
+            if(e) e.preventDefault();
+            
+            const btn = document.getElementById('submitTripBtn');
+            const originalText = btn.innerHTML;
+            
+            try {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Збереження...';
+
+                const fromVal = document.getElementById('adminFrom').value.trim();
+                const toVal = document.getElementById('adminTo').value.trim();
+                const dateVal = document.getElementById('adminDate').value;
+                const timeVal = document.getElementById('adminTime').value;
+                const priceVal = Number(document.getElementById('adminPrice').value);
+
+                if (!fromVal || !toVal || !dateVal || !timeVal || !priceVal) {
+                    alert('Заповніть всі поля для створення рейсу!');
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                    return;
+                }
+
+                if (fromVal.toLowerCase() === toVal.toLowerCase()) {
+                    alert('Пункт відправлення та прибуття не можуть бути однаковими!');
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                    return;
+                }
+
+                // Збереження в базу Firebase
+                const newRef = db.ref('trips').push();
+                const newTripData = {
+                    id: newRef.key,
+                    from: fromVal,
+                    to: toVal,
+                    route: `${fromVal} — ${toVal}`,
+                    date: dateVal,
+                    time: timeVal,
+                    price: priceVal,
+                    seatsCount: 43,
+                    blockedSeats: []
+                };
+
+                await newRef.set(newTripData);
+
+                alert(`✅ Рейс "${newTripData.route}" успішно збережено та опубліковано!`);
+                
+                // Очищення полів
+                document.getElementById('addTripForm').reset();
+                const today = new Date().toISOString().split('T')[0];
+                document.getElementById('adminDate').value = today;
+
+            } catch (err) {
+                console.error("Помилка збереження рейсу:", err);
+                alert("⚠️ Не вдалося зберегти рейс: " + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        }
+
+        function populateAdminTripSelect() {
+            const select = document.getElementById('adminTripSelect');
+            if(!select) return;
+            select.innerHTML = '<option value="">-- Оберіть рейс для блокування --</option>';
+            trips.forEach(t => {
+                const option = document.createElement('option');
+                option.value = t.id;
+                option.innerText = `${t.route} (${t.date}) - €${t.price}`;
+                select.appendChild(option);
+            });
+        }
+
+        function loadAdminBusSeats() {
+            const select = document.getElementById('adminTripSelect');
+            const tripId = select.value;
+            const container = document.getElementById('adminSeatsContainer');
+            
+            if (!tripId) {
+                container.classList.add('hidden');
+                return;
+            }
+
+            container.classList.remove('hidden');
+            const trip = trips.find(t => t.id === tripId);
+            if(!trip.blockedSeats) trip.blockedSeats = [];
+
+            const tripBookings = bookings.filter(b => b.tripId === tripId);
+            let bookedSeats = [];
+            tripBookings.forEach(b => {
+                if(Array.isArray(b.seatNumber)) bookedSeats.push(...b.seatNumber);
+                else if(b.seatNumber) bookedSeats.push(Number(b.seatNumber));
+            });
+
+            const grid = document.getElementById('adminBusSeatsGrid');
+            grid.innerHTML = '';
+
+            let seatCounter = 1;
+            for (let row = 1; row <= 10; row++) {
+                const rowDiv = document.createElement('div');
+                rowDiv.className = "flex justify-between gap-2 min-w-[260px]";
+
+                const leftPair = document.createElement('div');
+                leftPair.className = "flex gap-2";
+                const rightPair = document.createElement('div');
+                rightPair.className = "flex gap-2";
+
+                for (let i = 0; i < 2; i++) {
+                    if (seatCounter <= 40) {
+                        leftPair.appendChild(createAdminSeatElement(seatCounter, trip, bookedSeats));
+                        seatCounter++;
+                    }
+                }
+                for (let i = 0; i < 2; i++) {
+                    if (seatCounter <= 40) {
+                        rightPair.appendChild(createAdminSeatElement(seatCounter, trip, bookedSeats));
+                        seatCounter++;
+                    }
+                }
+
+                rowDiv.appendChild(leftPair);
+                rowDiv.appendChild(rightPair);
+                grid.appendChild(rowDiv);
+            }
+
+            const backRow = document.createElement('div');
+            backRow.className = "flex justify-center gap-2 pt-2 border-t border-brandBorder min-w-[260px]";
+            while (seatCounter <= 43) {
+                backRow.appendChild(createAdminSeatElement(seatCounter, trip, bookedSeats));
+                seatCounter++;
+            }
+            grid.appendChild(backRow);
+        }
+
+        function createAdminSeatElement(seatNum, trip, bookedSeats) {
+            const btn = document.createElement('button');
+            btn.type = "button";
+            const isBooked = bookedSeats.includes(seatNum);
+            const isBlocked = trip.blockedSeats.includes(seatNum);
+
+            btn.className = "w-8 h-8 rounded-lg text-xs font-bold seat flex items-center justify-center";
+
+            if (isBooked) {
+                btn.classList.add('occupied');
+                btn.innerText = seatNum;
+            } else if (isBlocked) {
+                btn.classList.add('blocked');
+                btn.innerText = "🚫";
+                btn.onclick = () => toggleBlockSeat(trip.id, seatNum);
+            } else {
+                btn.classList.add('available');
+                btn.innerText = seatNum;
+                btn.onclick = () => toggleBlockSeat(trip.id, seatNum);
+            }
+
+            return btn;
+        }
+
+        function toggleBlockSeat(tripId, seatNum) {
+            const trip = trips.find(t => t.id === tripId);
+            if (!trip) return;
+            if (!trip.blockedSeats) trip.blockedSeats = [];
+
+            const index = trip.blockedSeats.indexOf(seatNum);
+            if (index > -1) {
+                trip.blockedSeats.splice(index, 1);
+            } else {
+                trip.blockedSeats.push(seatNum);
+            }
+
+            db.ref('trips/' + tripId + '/blockedSeats').set(trip.blockedSeats, () => {
+                loadAdminBusSeats();
+            });
+        }
+
+        function renderAdminTripsTable() {
+            const tbody = document.getElementById('adminTripsTable');
+            if(!tbody) return;
+            tbody.innerHTML = '';
+
+            trips.forEach(t => {
+                if(!t.blockedSeats) t.blockedSeats = [];
+                const tripBookings = bookings.filter(b => b.tripId === t.id);
+                let bookedCount = 0;
+                tripBookings.forEach(b => {
+                    if(Array.isArray(b.seatNumber)) bookedCount += b.seatNumber.length;
+                    else if(b.seatNumber) bookedCount += 1;
+                });
+
+                const blockedCount = t.blockedSeats.length;
+
+                const tr = document.createElement('tr');
+                tr.className = "border-b border-brandBorder";
+                tr.innerHTML = `
+                    <td class="p-2.5">
+                        <input type="text" value="${t.from}" onchange="updateTripDetails('${t.id}', 'from', this.value)" class="w-24 md:w-28 bg-brandCard border border-brandBorder p-1 rounded-lg text-white font-bold text-xs focus:outline-none focus:border-flixGreen">
+                    </td>
+                    <td class="p-2.5">
+                        <input type="text" value="${t.to}" onchange="updateTripDetails('${t.id}', 'to', this.value)" class="w-24 md:w-28 bg-brandCard border border-brandBorder p-1 rounded-lg text-white font-bold text-xs focus:outline-none focus:border-flixGreen">
+                    </td>
+                    <td class="p-2.5 text-gray-400">${t.date} <br><span class="text-[10px]">${t.time}</span></td>
+                    <td class="p-2.5">
+                        <div class="flex items-center gap-1">
+                            <input type="number" value="${t.price}" onchange="updateTripDetails('${t.id}', 'price', this.value)" class="w-16 bg-brandCard border border-flixGreen/50 p-1 rounded-lg text-white font-bold text-xs focus:outline-none">
+                            <span class="text-flixGreen font-bold">€</span>
+                        </div>
+                    </td>
+                    <td class="p-2.5">
+                        <span class="text-green-400 font-bold">${bookedCount} зан.</span> / <span class="text-red-400 font-bold">${blockedCount} блок.</span>
+                    </td>
+                    <td class="p-2.5 text-right">
+                        <button onclick="deleteTrip('${t.id}')" class="text-red-500 hover:text-red-400 p-1">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function updateTripDetails(tripId, field, value) {
+            const trip = trips.find(t => t.id === tripId);
+            if(trip) {
+                if (field === 'price') trip.price = Number(value);
+                if (field === 'from') { trip.from = value.trim(); trip.route = `${trip.from} — ${trip.to}`; }
+                if (field === 'to') { trip.to = value.trim(); trip.route = `${trip.from} — ${trip.to}`; }
+
+                db.ref('trips/' + tripId).set(trip);
+            }
+        }
+
+        function deleteTrip(tripId) {
+            if (confirm('Видалити цей рейс?')) {
+                db.ref('trips/' + tripId).remove();
+            }
+        }
+
+        function renderAdminBookingsTable() {
+            const tbody = document.getElementById('adminBookingsTable');
+            if(!tbody) return;
+            tbody.innerHTML = '';
+
+            bookings.forEach((b) => {
+                const seatsFormatted = Array.isArray(b.seatNumber) ? b.seatNumber.join(', ') : b.seatNumber;
+                const tr = document.createElement('tr');
+                tr.className = "border-b border-brandBorder";
+                tr.innerHTML = `
+                    <td class="p-2.5 font-mono text-flixGreen font-bold">${b.ticketCode}</td>
+                    <td class="p-2.5">${b.route} <br><span class="text-[10px] text-gray-400">${b.tripType || ''} (${b.passengerCount || 1} пас.)</span></td>
+                    <td class="p-2.5 font-bold">${b.name}</td>
+                    <td class="p-2.5"><a href="tel:${b.phone}" class="hover:underline text-blue-400">${b.phone}</a></td>
+                    <td class="p-2.5">№ ${seatsFormatted} (€${b.price})</td>
+                    <td class="p-2.5 text-right">
+                        <button onclick="deleteBooking('${b.fbKey}')" class="text-red-500 hover:text-red-400 p-1">
+                            <i class="fa-solid fa-xmark text-base"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function deleteBooking(fbKey) {
+            if (confirm('Анулювати бронювання?')) {
+                db.ref('bookings/' + fbKey).remove();
+            }
+        }
+
+        function renderAdminParcelsTable() {
+            const tbody = document.getElementById('adminParcelsTable');
+            if(!tbody) return;
+            tbody.innerHTML = '';
+
+            if(parcels.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-gray-500">Немає заявок на передачі</td></tr>`;
+                return;
+            }
+
+            parcels.forEach((p) => {
+                const tr = document.createElement('tr');
+                tr.className = "border-b border-brandBorder";
+                tr.innerHTML = `
+                    <td class="p-2.5 text-gray-400">${p.date}</td>
+                    <td class="p-2.5 font-bold">${p.name}</td>
+                    <td class="p-2.5"><a href="tel:${p.phone}" class="hover:underline text-blue-400"><i class="fa-solid fa-phone text-[10px] mr-1"></i>${p.phone}</a></td>
+                    <td class="p-2.5">${p.details}</td>
+                    <td class="p-2.5 text-right">
+                        <button onclick="deleteParcel('${p.fbKey}')" class="text-red-500 hover:text-red-400 p-1">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function deleteParcel(fbKey) {
+            if (confirm('Видалити цю заявку?')) {
+                db.ref('parcels/' + fbKey).remove();
+            }
+        }
+
+        function toggleScanner() {
+            const container = document.getElementById('scannerContainer');
+            if (container.classList.contains('hidden')) {
+                container.classList.remove('hidden');
+                document.getElementById('scannerBtnText').innerText = "Закрити";
+
+                html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 200 });
+                html5QrcodeScanner.render((decodedText) => {
+                    const found = bookings.find(b => b.ticketCode === decodedText);
+                    const res = document.getElementById('scannerResult');
+                    if (found) {
+                        const seats = Array.isArray(found.seatNumber) ? found.seatNumber.join(', ') : found.seatNumber;
+                        res.className = "text-center text-xs font-bold mt-3 text-green-400";
+                        res.innerText = `✅ ДІЙСНИЙ КВИТОК! Пасажир: ${found.name}, Місця: №${seats}`;
+                    } else {
+                        res.className = "text-center text-xs font-bold mt-3 text-red-500";
+                        res.innerText = `❌ КВИТОК НЕ ЗНАЙДЕНО!`;
+                    }
+                });
+            } else {
+                container.classList.add('hidden');
+                document.getElementById('scannerBtnText').innerText = "Сканувати QR квиток";
+                if(html5QrcodeScanner) html5QrcodeScanner.clear();
+            }
+        }
+    </script>
+</body>
+</html>
